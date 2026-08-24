@@ -32,7 +32,7 @@
 
 use derivon_core::closure::PointSet;
 use derivon_core::graph::{Cost, Graph, PointId};
-use derivon_core::solve::{solve, Budget};
+use derivon_core::solve::{Budget, solve};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -183,7 +183,14 @@ fn render(instance: &Instance, solution: &derivon_core::solve::Solution) -> Stri
             let tail: Vec<String> = edge
                 .tail()
                 .iter()
-                .map(|id| instance.graph.point(*id).expect("in graph").name().to_owned())
+                .map(|id| {
+                    instance
+                        .graph
+                        .point(*id)
+                        .expect("in graph")
+                        .name()
+                        .to_owned()
+                })
                 .collect();
             format!(
                 "{{\"name\":\"{}\",\"tail\":[{}],\"head\":\"{}\",\"weight\":{}}}",

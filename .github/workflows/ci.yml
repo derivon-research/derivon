@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  # Fail on warnings. The lint set is small and the crate is young; letting warnings
+  # accumulate now is how a codebase ends up unable to see new ones.
+  RUSTFLAGS: -D warnings
+
+jobs:
+  rust:
+    name: format, lint, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo fmt --all --check
+      - run: cargo clippy --all-targets --all-features
+      - run: cargo test --all-features
+
+  conformance:
+    name: cross-language conformance
+    runs-on: ubuntu-latest
+    # This is the job that matters most, and it is worth understanding why it exists
+    # separately from `cargo test`.
+    #
+    # `solve.rs` already checks branch and bound against an exhaustive search, but that
+    # search lives in the same crate and calls the same `closure_restricted` the solver
+    # does. A fault in that function is therefore invisible to it: both sides agree and
+    # every test stays green.
+    #
+    # The Python oracle under verification/ is independent in the way that matters — a
+    # separate implementation with its own reachability code, already cross-validated
+    # over 1325 queries. It re-derives every answer rather than trusting any number this
+    # implementation emits, including replaying the returned derivation through its own
+    # closure. That replay is what puts our reachability code under outside scrutiny.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Several seeds rather than one. A single seed is a fixed set of shapes, and a
+      # regression that misses those shapes would pass forever.
+      - name: Compare against the Python oracle
+        run: |
+          set -euo pipefail
+          for seed in 7 42 1337; do
+            echo "::group::seed $seed"
+            cargo run --quiet -p derivon-core --example selftest -- \
+              --count 400 --seed "$seed" > "/tmp/rust-$seed.jsonl"
+            python3 verification/cross_check.py "/tmp/rust-$seed.jsonl"
+            echo "::endgroup::"
+          done
+
+      # The vendored oracle is a pinned copy. Editing it here instead of upstream would
+      # quietly destroy the independence the check depends on, so an accidental local
+      # change should fail loudly rather than pass.
+      - name: Vendored oracle is unmodified
+        run: |
+          set -euo pipefail
+          if git diff --quiet HEAD -- verification/verify_v6.py; then
+            echo "vendored oracle matches the committed copy"
+          else
+            echo "verification/verify_v6.py was modified; fix it upstream and re-vendor" >&2
+            exit 1
+          fi
