@@ -14,4 +14,7 @@ pub use closure::{
 };
 pub use cost::{BoundRole, CostMeasure, DepthCost, TreeCost};
 pub use graph::{Cost, Graph, GraphError, Hyperedge, HyperedgeId, Point, PointId};
-pub use solve::{Budget, Solution, SolveError, bounds, min_set_cost, solve, tree_derivation};
+pub use solve::{
+    Budget, Solution, SolveError, bounds, min_set_cost, min_set_cost_many, solve, solve_many,
+    tree_derivation, tree_derivation_many,
+};

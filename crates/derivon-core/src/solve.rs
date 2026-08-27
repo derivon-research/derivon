@@ -2,9 +2,9 @@
 //!
 //! # What is being solved
 //!
-//! Given start set `S` and target `t`, find the cheapest edge set `R` such that `t` is
-//! in the closure of `S` under `R`. Set cost is `sum_{h in R} w(h)`: every edge is
-//! charged once no matter how many branches reuse it.
+//! Given start set `S` and target set `T`, find the cheapest edge set `R` such that every
+//! target in `T` is in the closure of `S` under `R`. Set cost is `sum_{h in R} w(h)`:
+//! every edge is charged once no matter how many targets or branches reuse it.
 //!
 //! That "once" is the point of the model. A useful intermediate point compresses a
 //! route precisely because one derivation can serve several later branches. It is also
@@ -157,17 +157,36 @@ pub fn tree_derivation<P, E>(
     target: PointId,
 ) -> Option<Vec<HyperedgeId>> {
     graph.point(target)?;
-    let result = knuth(graph, start, &TreeCost, None);
-    derivation_from_choices(graph, start, target, &result)
+    let targets = PointSet::from_ids(graph, [target]).ok()?;
+    tree_derivation_many(graph, start, &targets)
 }
 
-fn derivation_from_choices<P, E>(
+/// The union of unique-edge supports witnessing tree-cost upper bounds for all targets.
+///
+/// The returned edge set derives every target. Shared prerequisites are collapsed to one
+/// edge ID, so its set cost can be lower than the sum of the individual tree costs.
+pub fn tree_derivation_many<P, E>(
     graph: &Graph<P, E>,
     start: &PointSet,
-    target: PointId,
+    targets: &PointSet,
+) -> Option<Vec<HyperedgeId>> {
+    if graph.point_count() != targets.universe_len() {
+        return None;
+    }
+    let result = knuth(graph, start, &TreeCost, None);
+    derivation_from_choices_many(graph, start, targets, &result)
+}
+
+fn derivation_from_choices_many<P, E>(
+    graph: &Graph<P, E>,
+    start: &PointSet,
+    targets: &PointSet,
     result: &KnuthResult,
 ) -> Option<Vec<HyperedgeId>> {
-    if !result.distances[target.index()].is_finite() {
+    if targets
+        .iter()
+        .any(|target| !result.distances[target.index()].is_finite())
+    {
         return None;
     }
 
@@ -176,7 +195,7 @@ fn derivation_from_choices<P, E>(
         have[point.index()] = true;
     }
     let mut selected = vec![false; graph.edge_count()];
-    let mut stack = vec![target];
+    let mut stack: Vec<_> = targets.iter().collect();
 
     while let Some(point) = stack.pop() {
         if have[point.index()] {
@@ -240,6 +259,7 @@ pub struct Solution {
 pub enum SolveError {
     UnknownTarget(PointId),
     PointSetSizeMismatch,
+    TargetSetSizeMismatch,
     LowerMeasureNotSuperior,
     UpperMeasureNotSuperior,
     InvalidLowerMeasureRole(BoundRole),
@@ -253,6 +273,9 @@ impl fmt::Display for SolveError {
             Self::UnknownTarget(id) => write!(formatter, "target {id:?} does not belong to graph"),
             Self::PointSetSizeMismatch => {
                 formatter.write_str("start set belongs to another graph size")
+            }
+            Self::TargetSetSizeMismatch => {
+                formatter.write_str("target set belongs to another graph size")
             }
             Self::LowerMeasureNotSuperior => formatter.write_str("lower measure is not superior"),
             Self::UpperMeasureNotSuperior => formatter.write_str("upper measure is not superior"),
@@ -269,7 +292,7 @@ impl fmt::Display for SolveError {
                 )
             }
             Self::CostOverflow => formatter.write_str(
-                "target is reachable but its cost exceeds the fixed-point representation",
+                "target set is reachable but its cost exceeds the fixed-point representation",
             ),
         }
     }
@@ -285,6 +308,16 @@ pub fn solve<P, E>(
     budget: &Budget,
 ) -> Result<Solution, SolveError> {
     min_set_cost(graph, start, target, &DepthCost, &TreeCost, budget)
+}
+
+/// Convenience entry point for a target set using the proven bounds.
+pub fn solve_many<P, E>(
+    graph: &Graph<P, E>,
+    start: &PointSet,
+    targets: &PointSet,
+    budget: &Budget,
+) -> Result<Solution, SolveError> {
+    min_set_cost_many(graph, start, targets, &DepthCost, &TreeCost, budget)
 }
 
 /// Minimum set cost by deterministic, budgeted branch and bound.
@@ -327,8 +360,32 @@ where
     if graph.point(target).is_none() {
         return Err(SolveError::UnknownTarget(target));
     }
+    let targets = PointSet::from_ids(graph, [target]).expect("validated target belongs to graph");
+    min_set_cost_many(graph, start, &targets, lower, upper, budget)
+}
+
+/// Minimum set cost for deriving every member of `targets`.
+///
+/// The lower bound is the maximum per-target depth bound: every feasible derivation must
+/// pay at least enough to reach each individual target. The initial executable incumbent
+/// is the union of the targets' tree witnesses, with shared edges charged only once.
+pub fn min_set_cost_many<P, E, L, U>(
+    graph: &Graph<P, E>,
+    start: &PointSet,
+    targets: &PointSet,
+    lower: &L,
+    upper: &U,
+    budget: &Budget,
+) -> Result<Solution, SolveError>
+where
+    L: CostMeasure,
+    U: CostMeasure,
+{
     if graph.point_count() != start.universe_len() {
         return Err(SolveError::PointSetSizeMismatch);
+    }
+    if graph.point_count() != targets.universe_len() {
+        return Err(SolveError::TargetSetSizeMismatch);
     }
     if !lower.is_superior() {
         return Err(SolveError::LowerMeasureNotSuperior);
@@ -344,12 +401,29 @@ where
     }
 
     let started = Instant::now();
+    if targets.is_empty() {
+        return Ok(Solution {
+            cost: Cost::ZERO,
+            derivation: Vec::new(),
+            lower: Cost::ZERO,
+            upper: Cost::ZERO,
+            proven_optimal: true,
+            nodes: 0,
+            pruned: 0,
+            millis: elapsed_millis(started),
+        });
+    }
+
     let lower_result = knuth(graph, start, lower, None);
     let upper_result = knuth(graph, start, upper, None);
-    let initial_lower = lower_result.distances[target.index()];
-    let polynomial_upper = upper_result.distances[target.index()];
+    let initial_lower = targets
+        .iter()
+        .map(|target| lower_result.distances[target.index()])
+        .max()
+        .expect("non-empty target set");
 
-    let reachable = closure(graph, start).contains(target);
+    let reached = closure(graph, start);
+    let reachable = targets.iter().all(|target| reached.contains(target));
     debug_assert!(
         !initial_lower.is_finite() || reachable,
         "Knuth reported a finite cost for an unreachable point"
@@ -371,15 +445,13 @@ where
         });
     }
 
-    let Some(incumbent) = derivation_from_choices(graph, start, target, &upper_result) else {
+    let Some(incumbent) = derivation_from_choices_many(graph, start, targets, &upper_result) else {
         return Err(SolveError::CostOverflow);
     };
     let incumbent_cost: Cost = incumbent
         .iter()
         .map(|&edge| graph.edge_unchecked(edge).weight())
         .sum();
-    debug_assert!(incumbent_cost <= polynomial_upper);
-
     if initial_lower == incumbent_cost {
         return Ok(Solution {
             cost: incumbent_cost,
@@ -396,12 +468,14 @@ where
     let mut selected = vec![false; graph.edge_count()];
     let best_selected = ids_to_mask(graph, &incumbent);
     let mut goals = vec![false; graph.point_count()];
-    goals[target.index()] = true;
+    for target in targets.iter() {
+        goals[target.index()] = true;
+    }
 
     let mut search = Search {
         graph,
         start,
-        target,
+        targets,
         lower,
         budget,
         started,
@@ -433,7 +507,7 @@ where
 struct Search<'a, P, E, L> {
     graph: &'a Graph<P, E>,
     start: &'a PointSet,
-    target: PointId,
+    targets: &'a PointSet,
     lower: &'a L,
     budget: &'a Budget,
     started: Instant,
@@ -461,7 +535,7 @@ impl<P, E, L: CostMeasure> Search<'_, P, E, L> {
         }
 
         if !remaining.iter().any(|needed| *needed) {
-            if derived.contains(self.target) && cost < self.best_cost {
+            if self.targets.iter().all(|target| derived.contains(target)) && cost < self.best_cost {
                 self.best_cost = cost;
                 self.best_selected.copy_from_slice(selected);
             }
@@ -601,6 +675,98 @@ mod tests {
     }
 
     #[test]
+    fn multiple_targets_share_selected_edges_and_cost() {
+        let (graph, start, _) = shared_graph();
+        let d = graph.point_id("d").unwrap();
+        let e = graph.point_id("e").unwrap();
+        let targets = PointSet::from_ids(&graph, [d, e]).unwrap();
+
+        let solution = solve_many(&graph, &start, &targets, &Budget::default()).unwrap();
+        let reached = closure_restricted(&graph, &start, &solution.derivation);
+
+        assert!(solution.proven_optimal);
+        assert_eq!(solution.cost, Cost::from_units(5));
+        assert_eq!(solution.derivation.len(), 3);
+        assert!(targets.iter().all(|target| reached.contains(target)));
+    }
+
+    #[test]
+    fn empty_target_set_has_the_unique_empty_solution() {
+        let (graph, start, _) = shared_graph();
+        let solution =
+            solve_many(&graph, &start, &PointSet::empty(&graph), &Budget::default()).unwrap();
+
+        assert_eq!(solution.cost, Cost::ZERO);
+        assert!(solution.derivation.is_empty());
+        assert!(solution.proven_optimal);
+        assert_eq!(solution.lower, Cost::ZERO);
+        assert_eq!(solution.upper, Cost::ZERO);
+    }
+
+    #[test]
+    fn any_unreachable_target_makes_the_target_set_unreachable() {
+        let mut graph = Graph::new();
+        let start_point = graph.add_point("start", ()).unwrap();
+        let reachable = graph.add_point("reachable", ()).unwrap();
+        let unreachable = graph.add_point("unreachable", ()).unwrap();
+        graph
+            .add_hyperedge(
+                "reachable-edge",
+                [start_point],
+                reachable,
+                Cost::from_units(1),
+                (),
+            )
+            .unwrap();
+        let start = PointSet::from_ids(&graph, [start_point]).unwrap();
+        let targets = PointSet::from_ids(&graph, [reachable, unreachable]).unwrap();
+
+        let solution = solve_many(&graph, &start, &targets, &Budget::default()).unwrap();
+
+        assert_eq!(solution.cost, Cost::INFINITY);
+        assert!(solution.derivation.is_empty());
+        assert!(solution.proven_optimal);
+    }
+
+    #[test]
+    fn exhausted_budget_returns_a_witness_for_every_target() {
+        let (graph, start, _) = shared_graph();
+        let targets = PointSet::from_ids(
+            &graph,
+            [graph.point_id("d").unwrap(), graph.point_id("e").unwrap()],
+        )
+        .unwrap();
+        let solution = solve_many(
+            &graph,
+            &start,
+            &targets,
+            &Budget {
+                max_nodes: 0,
+                max_millis: 1_000,
+            },
+        )
+        .unwrap();
+        let reached = closure_restricted(&graph, &start, &solution.derivation);
+
+        assert!(!solution.proven_optimal);
+        assert!(solution.lower <= solution.cost);
+        assert!(targets.iter().all(|target| reached.contains(target)));
+    }
+
+    #[test]
+    fn target_set_size_mismatch_is_rejected() {
+        let (graph, start, _) = shared_graph();
+        let mut other: Graph<(), ()> = Graph::new();
+        let target = other.add_point("other", ()).unwrap();
+        let targets = PointSet::from_ids(&other, [target]).unwrap();
+
+        assert_eq!(
+            solve_many(&graph, &start, &targets, &Budget::default()),
+            Err(SolveError::TargetSetSizeMismatch)
+        );
+    }
+
+    #[test]
     fn empty_tail_is_reachable_in_bounds_and_solver() {
         let mut graph = Graph::new();
         let point = graph.add_point("entry", ()).unwrap();
@@ -731,10 +897,39 @@ mod tests {
                     assert_eq!(reported, solution.cost);
                 }
             }
+
+            for pair in points.windows(2) {
+                let targets = PointSet::from_ids(&graph, pair.iter().copied()).unwrap();
+                let expected = exhaustive_cost_many(&graph, &start, &targets);
+                let solution = solve_many(
+                    &graph,
+                    &start,
+                    &targets,
+                    &Budget {
+                        max_nodes: 1_000_000,
+                        max_millis: 5_000,
+                    },
+                )
+                .unwrap();
+
+                assert!(solution.proven_optimal, "trial {trial}, targets {pair:?}");
+                assert_eq!(solution.cost, expected, "trial {trial}, targets {pair:?}");
+                assert_eq!(solution.lower, expected);
+                assert_eq!(solution.upper, expected);
+                if expected.is_finite() {
+                    let reached = closure_restricted(&graph, &start, &solution.derivation);
+                    assert!(targets.iter().all(|target| reached.contains(target)));
+                }
+            }
         }
     }
 
     fn exhaustive_cost(graph: &Graph, start: &PointSet, target: PointId) -> Cost {
+        let targets = PointSet::from_ids(graph, [target]).unwrap();
+        exhaustive_cost_many(graph, start, &targets)
+    }
+
+    fn exhaustive_cost_many(graph: &Graph, start: &PointSet, targets: &PointSet) -> Cost {
         let mut best = Cost::INFINITY;
         for mask in 0..(1_u64 << graph.edge_count()) {
             let mut edges = Vec::new();
@@ -746,8 +941,11 @@ mod tests {
                     cost += graph.edge_unchecked(edge).weight();
                 }
             }
-            if cost < best && closure_restricted(graph, start, &edges).contains(target) {
-                best = cost;
+            if cost < best {
+                let reached = closure_restricted(graph, start, &edges);
+                if targets.iter().all(|target| reached.contains(target)) {
+                    best = cost;
+                }
             }
         }
         best
