@@ -17,9 +17,16 @@ public `derivon-research/homebrew-tap` repository exists.
 `derivon-cli 0.1.0`; GitHub Release contains both Linux musl archives, checksums, and
 provenance; and Pages serves `/cli/v0.1/` as stable.
 
-The remaining release action is to run the automated macOS Formula workflow after a
-repository-scoped `HOMEBREW_TAP_TOKEN` is configured. It generates the source Formula,
-audits it, install-tests it, and pushes it to `derivon-research/homebrew-tap`.
+Homebrew distribution is published. The repository-scoped `HOMEBREW_TAP_TOKEN` drives
+a serialized macOS workflow that generates the source Formula, runs `brew style`, strict
+audit, source installation, and `brew test`, and only then pushes it to
+`derivon-research/homebrew-tap`.
+
+The workflow follows cargo-dist's established cross-repository tap publishing boundary,
+while retaining the source-build validation required by Homebrew's tap guidance. The
+Formula itself follows the source-built Rust patterns used by mature Homebrew core
+packages such as `git-cliff` and `gitui`; cargo-dist's binary Formula generator is not
+used because Derivon intentionally does not publish standalone macOS archives.
 
 ## Confirmed Decisions
 
