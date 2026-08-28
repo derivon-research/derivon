@@ -32,7 +32,7 @@ jobs:
           echo "VERSION=${RELEASE_TAG#derivon-cli-v}" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: main
           path: derivon
           persist-credentials: false
       - name: Wait for crates.io package and calculate checksum
