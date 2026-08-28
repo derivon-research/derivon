@@ -1,0 +1,15 @@
+[book]
+title = "Derivon CLI"
+description = "Reference for the Derivon B-hypergraph command-line interface"
+authors = ["Derivon Research"]
+language = "en"
+multilingual = false
+src = "src"
+
+[build]
+build-dir = "book"
+create-missing = false
+
+[output.html]
+git-repository-url = "https://github.com/derivon-research/derivon"
+site-url = "/cli/"

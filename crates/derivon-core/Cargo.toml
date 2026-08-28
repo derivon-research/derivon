@@ -2,3 +2,7 @@
 name = "derivon-core"
 version = "0.2.0"
 edition = "2024"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "IO-free algorithms for weighted directed B-hypergraph derivation"

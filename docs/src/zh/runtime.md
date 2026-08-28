@@ -1,0 +1,7 @@
+# 运行时契约
+
+Derivon 业务命令是离线、无状态的数学操作。它们不访问网络，不发送遥测、不检查更新或上报崩溃，不读取用户级配置，不创建缓存、状态目录或 lock file，也不自动发现 authoring workspace 或 `.derivon` 目录。
+
+CLI 只读取 stdin 和参数显式指定的文件。当前工作目录只用于解析相对路径。相同显式输入的结果不受 HOME、locale 或网络状态影响。
+
+机器字段、help 和诊断 message 使用英文，不随 locale 改变。message 不用于脚本解析，机器判断使用 error code 和 path。用户手册为双语，英文是规范版本。

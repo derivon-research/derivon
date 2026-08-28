@@ -26,6 +26,20 @@ jobs:
       - run: cargo clippy --all-targets --all-features
       - run: cargo test --all-features
 
+  docs-and-scripts:
+    name: docs and shell contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install mdBook
+        run: cargo install mdbook --version 0.4.43 --locked
+      - run: mdbook build docs
+      - run: bash -n scripts/build-pages.sh
+      - run: sh -n scripts/install.sh
+      - run: scripts/build-pages.sh site
+      - run: test -f site/cli/dev/index.html && test -f site/cli/dev/zh/index.html && test -f site/cli/install.sh
+
   conformance:
     name: cross-language conformance
     runs-on: ubuntu-latest

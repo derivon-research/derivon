@@ -1,0 +1,122 @@
+name: Release Derivon CLI
+
+on:
+  push:
+    tags: ["derivon-cli-v*"]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Verify tag matches package version
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#derivon-cli-v}"
+          package_version=$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name == "derivon-cli") | .version')
+          test "$version" = "$package_version"
+      - run: cargo fmt --all --check
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: cargo test --all-features
+      - name: Build user documentation
+        run: |
+          cargo install mdbook --version 0.4.43 --locked
+          mdbook build docs
+
+  build-linux:
+    needs: verify
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-musl
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cross
+        run: cargo install cross --version 0.2.5 --locked
+      - name: Build
+        run: cross build --release --locked -p derivon-cli --target "${{ matrix.target }}"
+      - name: Create archive
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#derivon-cli-v}"
+          archive="derivon-$version-${{ matrix.target }}.tar.gz"
+          staging=$(mktemp -d)
+          cp "target/${{ matrix.target }}/release/derivon" "$staging/derivon"
+          cp LICENSE README.md "$staging/"
+          tar -C "$staging" -czf "$archive" derivon LICENSE README.md
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: derivon-*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.target }}
+          path: derivon-*.tar.gz
+          if-no-files-found: error
+
+  github-release:
+    needs: build-linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: artifacts
+          merge-multiple: true
+      - name: Create checksums
+        run: |
+          cd artifacts
+          sha256sum derivon-*.tar.gz > SHA256SUMS
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            artifacts/derivon-*.tar.gz artifacts/SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --generate-notes \
+            --title "Derivon CLI ${GITHUB_REF_NAME#derivon-cli-v}"
+
+  crates-io:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Publish core if needed
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          if ! curl -fsS "https://crates.io/api/v1/crates/derivon-core/0.2.0" >/dev/null; then
+            cargo publish --locked -p derivon-core
+          fi
+      - name: Wait for core index
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            if cargo search derivon-core --limit 1 | grep -q '^derivon-core = "0.2.0"'; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "derivon-core 0.2.0 did not reach the crates.io index" >&2
+          exit 1
+      - name: Publish CLI
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --locked -p derivon-cli
