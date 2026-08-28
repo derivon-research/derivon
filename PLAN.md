@@ -7,15 +7,18 @@ the Derivon CLI. Stable user-facing behavior belongs in `docs/`, not here.
 
 The design tree is closed and the user confirmed the shared contract. The initial
 `derivon-cli 0.1.0` implementation, contract tests, documentation, installer, and release
-workflows are complete in the working tree.
+workflows are complete and pushed to main.
 
-External release actions remain operational prerequisites rather than code tasks:
+Remote infrastructure is configured: `CARGO_REGISTRY_TOKEN` is present; GitHub Pages is
+published at `https://docs.derivon.net/cli/` with verified custom-domain TLS; and the
+public `derivon-research/homebrew-tap` repository exists.
 
-- configure `CARGO_REGISTRY_TOKEN` and publish `derivon-core 0.2.0` before the CLI;
-- create and configure `derivon-research/homebrew-tap`;
-- point the intended `derivon.net` hosting at the Pages artifact or otherwise publish
-  `site/cli/install.sh`; and
-- enable GitHub Pages and required provenance permissions in repository settings.
+Two release actions remain intentionally pending:
+
+- create the immutable `derivon-cli-v0.1.0` tag, which publishes `derivon-core 0.2.0`,
+  then `derivon-cli 0.1.0`, Linux archives, checksums, and provenance; and
+- generate, audit, install-test, and push the Homebrew formula after crates.io exposes
+  the CLI package.
 
 ## Confirmed Decisions
 
