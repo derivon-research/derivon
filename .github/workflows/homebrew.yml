@@ -73,7 +73,7 @@ jobs:
           brew audit --strict derivon-research/tap/derivon
           brew trust --formula derivon-research/tap/derivon
           brew uninstall derivon >/dev/null 2>&1 || true
-          brew install --build-from-source homebrew-tap/Formula/derivon.rb
+          brew install --build-from-source derivon-research/tap/derivon
           brew test derivon
           test "$(derivon --version)" = "derivon $VERSION (default graph schema: derivon.graph/v1)"
       - name: Commit formula
