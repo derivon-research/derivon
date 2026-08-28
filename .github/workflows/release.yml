@@ -122,8 +122,12 @@ jobs:
         run: |
           set -euo pipefail
           metadata=$(cargo metadata --no-deps --format-version 1)
-          echo "CORE_VERSION=$(jq -r '.packages[] | select(.name == \"derivon-core\") | .version' <<<"$metadata")" >> "$GITHUB_ENV"
-          echo "CLI_VERSION=$(jq -r '.packages[] | select(.name == \"derivon-cli\") | .version' <<<"$metadata")" >> "$GITHUB_ENV"
+          core_version=$(jq -r '.packages[] | select(.name == "derivon-core") | .version' <<<"$metadata")
+          cli_version=$(jq -r '.packages[] | select(.name == "derivon-cli") | .version' <<<"$metadata")
+          test -n "$core_version"
+          test -n "$cli_version"
+          echo "CORE_VERSION=$core_version" >> "$GITHUB_ENV"
+          echo "CLI_VERSION=$cli_version" >> "$GITHUB_ENV"
       - name: Publish core if needed
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
