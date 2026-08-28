@@ -1,0 +1,93 @@
+name: Publish Homebrew Formula
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+    secrets:
+      HOMEBREW_TAP_TOKEN:
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing derivon-cli release tag
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  formula:
+    runs-on: macos-14
+    steps:
+      - name: Validate release tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^derivon-cli-v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "VERSION=${RELEASE_TAG#derivon-cli-v}" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          path: derivon
+          persist-credentials: false
+      - name: Wait for crates.io package and calculate checksum
+        run: |
+          set -euo pipefail
+          url="https://static.crates.io/crates/derivon-cli/derivon-cli-$VERSION.crate"
+          for attempt in $(seq 1 60); do
+            if curl -fsSL "$url" -o "$RUNNER_TEMP/derivon-cli.crate"; then
+              break
+            fi
+            sleep 10
+          done
+          test -s "$RUNNER_TEMP/derivon-cli.crate"
+          echo "CRATE_SHA256=$(shasum -a 256 "$RUNNER_TEMP/derivon-cli.crate" | awk '{print $1}')" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v4
+        with:
+          repository: derivon-research/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+      - name: Register tap checkout
+        run: |
+          set -euo pipefail
+          tap_dir="$(brew --repository)/Library/Taps/derivon-research/homebrew-tap"
+          rm -rf "$tap_dir"
+          mkdir -p "$(dirname "$tap_dir")"
+          ln -s "$GITHUB_WORKSPACE/homebrew-tap" "$tap_dir"
+      - name: Generate formula
+        run: |
+          derivon/scripts/render-homebrew-formula.sh \
+            "$VERSION" "$CRATE_SHA256" homebrew-tap/Formula/derivon.rb
+          brew style --fix derivon-research/tap/derivon
+      - name: Audit, install, and test formula
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_FROM_API: "1"
+        run: |
+          set -euo pipefail
+          brew audit --strict derivon-research/tap/derivon
+          brew trust --formula derivon-research/tap/derivon
+          brew uninstall derivon >/dev/null 2>&1 || true
+          brew install --build-from-source homebrew-tap/Formula/derivon.rb
+          brew test derivon
+          test "$(derivon --version)" = "derivon $VERSION (default graph schema: derivon.graph/v1)"
+      - name: Commit formula
+        working-directory: homebrew-tap
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "derivon-release[bot]"
+          git config user.email "derivon-release[bot]@users.noreply.github.com"
+          git add Formula/derivon.rb
+          if git diff --cached --quiet; then
+            echo "Formula already matches $RELEASE_TAG"
+            exit 0
+          fi
+          git commit -m "derivon $VERSION"
+          git push origin HEAD:main

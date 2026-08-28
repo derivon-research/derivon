@@ -14,7 +14,7 @@ cargo install derivon-cli
 brew install derivon-research/tap/derivon
 ```
 
-Derivon 使用 formula，不使用 cask。独立的 `derivon-research/homebrew-tap` 仓库维护 formula 和 bottles。Rust 仅是 build dependency。
+Derivon 使用从源码构建的 formula，不使用 cask。独立的 `derivon-research/homebrew-tap` 仓库维护 formula。Rust 仅是 build dependency。
 
 ## 安装脚本
 

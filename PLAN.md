@@ -13,12 +13,13 @@ Remote infrastructure is configured: `CARGO_REGISTRY_TOKEN` is present; GitHub P
 published at `https://docs.derivon.net/cli/` with verified custom-domain TLS; and the
 public `derivon-research/homebrew-tap` repository exists.
 
-Two release actions remain intentionally pending:
+`derivon-cli-v0.1.0` is published: crates.io contains `derivon-core 0.2.0` and
+`derivon-cli 0.1.0`; GitHub Release contains both Linux musl archives, checksums, and
+provenance; and Pages serves `/cli/v0.1/` as stable.
 
-- create the immutable `derivon-cli-v0.1.0` tag, which publishes `derivon-core 0.2.0`,
-  then `derivon-cli 0.1.0`, Linux archives, checksums, and provenance; and
-- generate, audit, install-test, and push the Homebrew formula after crates.io exposes
-  the CLI package.
+The remaining release action is to run the automated macOS Formula workflow after a
+repository-scoped `HOMEBREW_TAP_TOKEN` is configured. It generates the source Formula,
+audits it, install-tests it, and pushes it to `derivon-research/homebrew-tap`.
 
 ## Confirmed Decisions
 

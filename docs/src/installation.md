@@ -16,9 +16,9 @@ cargo install derivon-cli
 brew install derivon-research/tap/derivon
 ```
 
-Derivon is a Homebrew formula, not a cask. The separate
-`derivon-research/homebrew-tap` repository owns the formula and bottles. Rust is a build
-dependency, not a runtime dependency.
+Derivon is a source-built Homebrew formula, not a cask. The separate
+`derivon-research/homebrew-tap` repository owns the formula. Rust is a build dependency,
+not a runtime dependency.
 
 ## Installer
 

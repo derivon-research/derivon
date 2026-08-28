@@ -36,6 +36,7 @@ jobs:
         run: cargo install mdbook --version 0.4.43 --locked
       - run: mdbook build docs
       - run: bash -n scripts/build-pages.sh
+      - run: bash -n scripts/render-homebrew-formula.sh
       - run: sh -n scripts/install.sh
       - run: scripts/build-pages.sh site
       - run: test -f site/cli/dev/index.html && test -f site/cli/dev/zh/index.html && test -f site/cli/install.sh

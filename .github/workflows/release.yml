@@ -159,3 +159,13 @@ jobs:
           else
             cargo publish --locked -p derivon-cli
           fi
+
+  homebrew:
+    if: github.event_name == 'push'
+    needs:
+      - crates-io
+      - github-release
+    uses: ./.github/workflows/homebrew.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets: inherit
