@@ -35,6 +35,7 @@ class Derivon < Formula
   end
 
   test do
+    assert_equal "derivon #{version}\\n", shell_output("#{bin}/derivon -v")
     assert_match "derivon #{version}", shell_output("#{bin}/derivon --version")
     input = "{\"points\":[],\"hyperedges\":[]}\\n"
     expected = "{\"hyperedges\":[],\"points\":[]}\\n"

@@ -82,6 +82,7 @@ jobs:
           brew uninstall derivon >/dev/null 2>&1 || true
           brew install --build-from-source derivon-research/tap/derivon
           brew test derivon
+          test "$(derivon -v)" = "derivon $VERSION"
           test "$(derivon --version)" = "derivon $VERSION (default graph schema: derivon.graph/v1)"
       - name: Commit formula
         working-directory: homebrew-tap
