@@ -1,27 +1,19 @@
 # Graph Format
 
-The CLI directly accepts the `graph` fragment used by the Derivon mind-map authoring
-format:
+The CLI owns and directly accepts the `derivon.graph/v1` graph protocol:
 
 ```json
 {
   "points": [
-    {
-      "id": "A",
-      "data": { "label": "A" }
-    },
-    {
-      "id": "B",
-      "data": { "label": "B" }
-    }
+    { "id": "A" },
+    { "id": "B" }
   ],
   "hyperedges": [
     {
       "id": "h-ab",
       "weight": 1.5,
       "tails": ["A"],
-      "head": "B",
-      "data": { "source": "example" }
+      "head": "B"
     }
   ]
 }
@@ -50,9 +42,9 @@ A hyperedge has:
   `900719925474099.1`; and
 - optional opaque `data`.
 
-Point and hyperedge IDs share one namespace and are case-sensitive machine identifiers.
-Agents, scripts, and the mind-map backend own their allocation. Human-facing names and
-labels belong in `data`, never in the structural ID.
+Point and hyperedge IDs share one namespace and are case-sensitive structural
+identifiers. The caller owns their allocation. The CLI does not infer identity from or
+assign application semantics to optional `data`.
 
 An ID is 1 to 128 ASCII bytes and matches:
 

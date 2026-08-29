@@ -4,11 +4,13 @@ Derivon CLI 是面向 Agent、脚本和 Unix 管道的无状态 JSON 处理器�
 
 英文手册是规范文本；中文手册是同步维护的翻译。两者冲突时，以英文契约为准。
 
-CLI 只接收 graph，不接收完整的 Derivon authoring 文档：
+CLI 接收一个遵循其自有 `derivon.graph/v1` 协议的 graph：
 
 ```bash
-jq '.graph' workspace.json | derivon validate
+derivon validate < graph.json
 ```
+
+如果应用把 graph 嵌入更大的 JSON envelope，应用必须先提取 graph，再调用 CLI。
 
 每次调用只处理一个完整 graph。CLI 不保存会话状态，也不原地修改输入文件。
 

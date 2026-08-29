@@ -25,11 +25,11 @@ derivon point add B < graph.json \
   > updated-graph.json
 ```
 
-An authoring document contains graph-independent fields which the CLI must not receive.
-Use an external JSON processor to extract or replace its graph:
+If an application embeds a graph in a larger JSON envelope, use an external JSON
+processor to extract it before invoking the CLI:
 
 ```bash
-jq '.graph' workspace.json | derivon query closure --start A
+jq '.graph' envelope.json | derivon query closure --start A
 ```
 
 For several changes that must succeed or fail together, use atomic `apply` rather than a
