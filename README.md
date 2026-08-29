@@ -4,21 +4,21 @@ Derivon computes reachability and minimum-set-cost derivations over non-negative
 directed B-hypergraphs.
 
 The `derivon` CLI is a stateless JSON processor for Agents, scripts, and Unix pipelines.
-It accepts the graph fragment of a Derivon authoring document:
+It accepts one graph that follows the CLI-owned `derivon.graph/v1` protocol:
 
 ```bash
-jq '.graph' workspace.json | derivon validate
+derivon validate < graph.json
 ```
 
 Example mutation and route query:
 
 ```bash
-derivon point add concept-b < graph.json \
-  | derivon hyperedge add derives-b \
-      --tail concept-a --head concept-b --weight 1.5 \
+derivon point add B < graph.json \
+  | derivon hyperedge add h-ab \
+      --tail A --head B --weight 1.5 \
   > updated-graph.json
 
-derivon query route --start concept-a --target concept-b < updated-graph.json
+derivon query route --start A --target B < updated-graph.json
 ```
 
 ## Install

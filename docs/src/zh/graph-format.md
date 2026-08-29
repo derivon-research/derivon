@@ -1,20 +1,19 @@
 # 图格式
 
-CLI 直接接收 Derivon mind-map authoring 格式中的 graph 片段：
+CLI 自有并直接接收 `derivon.graph/v1` graph 协议：
 
 ```json
 {
   "points": [
-    { "id": "A", "data": { "label": "A" } },
-    { "id": "B", "data": { "label": "B" } }
+    { "id": "A" },
+    { "id": "B" }
   ],
   "hyperedges": [
     {
       "id": "h-ab",
       "weight": 1.5,
       "tails": ["A"],
-      "head": "B",
-      "data": { "source": "example" }
+      "head": "B"
     }
   ]
 }
@@ -22,7 +21,7 @@ CLI 直接接收 Derivon mind-map authoring 格式中的 graph 片段：
 
 可选的顶层 schema 是 `"schema": "derivon.graph/v1"`。缺少 schema 时也严格表示 v1，而不是最新版。未知版本会被拒绝。mutation 和 subgraph 保留输入是否携带 schema，不做隐式升级或降级。
 
-点与超边 ID 共用一个区分大小写的命名空间。ID 是由 Agent、脚本和 mind-map 后端管理的机器标识符；展示名称必须放入 `data`。ID 长度为 1 到 128 个 ASCII 字节，并匹配：
+点与超边 ID 共用一个区分大小写的命名空间，并作为结构标识符由调用方分配。CLI 不从可选 `data` 推断身份，也不为其赋予应用语义。ID 长度为 1 到 128 个 ASCII 字节，并匹配：
 
 ```text
 ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$

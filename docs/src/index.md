@@ -6,12 +6,14 @@ B-hypergraphs. It is designed for Agents, scripts, and Unix pipelines.
 This English manual is normative. The Chinese manual is a maintained translation; when
 the two disagree, the English contract takes precedence.
 
-The CLI accepts graph data, not an entire Derivon authoring document. Extract the graph
-before invoking it:
+The CLI accepts one graph that follows the CLI-owned `derivon.graph/v1` protocol:
 
 ```bash
-jq '.graph' workspace.json | derivon validate
+derivon validate < graph.json
 ```
+
+If an application embeds that graph in a larger JSON envelope, the application must
+extract it before invoking the CLI.
 
 Every invocation processes exactly one complete graph. The CLI stores no graph between
 commands and does not edit input files in place.

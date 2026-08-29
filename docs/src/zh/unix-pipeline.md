@@ -20,8 +20,8 @@ derivon --input graph.json point get A
 derivon apply --operations changes.json < graph.json > updated-graph.json
 ```
 
-完整 authoring 文档应先由外部工具提取 graph：
+如果应用把 graph 嵌入更大的 JSON envelope，应先用外部 JSON 工具提取：
 
 ```bash
-jq '.graph' workspace.json | derivon query closure --start A
+jq '.graph' envelope.json | derivon query closure --start A
 ```

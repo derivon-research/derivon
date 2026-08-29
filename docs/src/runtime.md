@@ -1,6 +1,6 @@
 # Runtime Contract
 
-Derivon business commands are offline, stateless mathematical operations.
+Derivon graph commands are offline, stateless mathematical operations.
 
 They do not:
 
@@ -8,7 +8,7 @@ They do not:
 - send telemetry, check for updates, or report crashes;
 - read user-level configuration;
 - create caches, state directories, or lock files;
-- discover authoring workspaces or `.derivon` directories; or
+- search the current or parent directories for implicit graph input; or
 - vary JSON fields, help, or diagnostics with the system locale.
 
 The CLI reads only stdin and files explicitly named by command arguments. The current
