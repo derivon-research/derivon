@@ -23,8 +23,11 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      stable_path: ${{ steps.stable.outputs.path }}
+      stable_sha256: ${{ steps.stable.outputs.sha256 }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           fetch-depth: 0
@@ -32,6 +35,16 @@ jobs:
         run: cargo install mdbook --version 0.4.43 --locked
       - name: Build versioned documentation
         run: bash scripts/build-pages.sh site
+      - name: Record stable documentation digest
+        id: stable
+        run: |
+          set -euo pipefail
+          stable_dir=$(find site/cli -mindepth 1 -maxdepth 1 -type d -name 'v*' | sort -V | tail -n 1)
+          test -n "$stable_dir"
+          stable_file="$stable_dir/installation.html"
+          test -f "$stable_file"
+          echo "path=${stable_file#site/}" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum "$stable_file" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -47,3 +60,24 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Verify deployed stable documentation
+        env:
+          EXPECTED_PATH: ${{ needs.build.outputs.stable_path }}
+          EXPECTED_SHA256: ${{ needs.build.outputs.stable_sha256 }}
+        run: |
+          set -euo pipefail
+          downloaded=$(mktemp)
+          trap 'rm -f "$downloaded"' EXIT
+          for attempt in $(seq 1 120); do
+            if curl -fsSL -H 'Cache-Control: no-cache' \
+              "https://docs.derivon.net/$EXPECTED_PATH?deployment=$GITHUB_RUN_ID-$attempt" \
+              -o "$downloaded"; then
+              actual=$(sha256sum "$downloaded" | awk '{print $1}')
+              if [[ "$actual" = "$EXPECTED_SHA256" ]]; then
+                exit 0
+              fi
+            fi
+            sleep 5
+          done
+          echo "deployed documentation did not match the uploaded artifact" >&2
+          exit 1

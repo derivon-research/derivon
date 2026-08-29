@@ -17,10 +17,11 @@ public `derivon-research/homebrew-tap` repository exists.
 `derivon-cli 0.1.0`; GitHub Release contains both Linux musl archives, checksums, and
 provenance; and Pages serves `/cli/v0.1/` as stable.
 
-The `0.1.1` patch displays `-v` as the short version flag while retaining `-V` as a
-hidden compatibility alias, accepts negative numeric CLI values for exact domain
-validation, and makes the documented 128-level JSON depth boundary exact. Its expanded
-process, command, apply, and protocol tests cover the complete public command families.
+`derivon-cli-v0.1.1` is published to crates.io, GitHub Release, and the Homebrew tap.
+The patch displays `-v` as the short version flag while retaining `-V` as a hidden
+compatibility alias, accepts negative numeric CLI values for exact domain validation,
+and makes the documented 128-level JSON depth boundary exact. Its expanded process,
+command, apply, and protocol tests cover the complete public command families.
 
 Homebrew distribution is published. The repository-scoped `HOMEBREW_TAP_TOKEN` drives
 a serialized macOS workflow that generates the source Formula, runs `brew style`, strict
