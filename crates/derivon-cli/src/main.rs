@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use clap::{Parser, error::ErrorKind};
+use clap::error::ErrorKind;
 use derivon_cli::args::Cli;
 use derivon_cli::error::CliError;
 

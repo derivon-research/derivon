@@ -2,7 +2,8 @@
 
 The first CLI release is package version `0.1.0` with Git tag
 `derivon-cli-v0.1.0`. Package-prefixed tags avoid collisions with existing workspace
-tags.
+tags. Version `0.1.1` displays `-v` as the short version flag. The v0.1.0 spelling `-V`
+remains an accepted, hidden alias throughout the `0.1.x` compatibility line.
 
 ## CLI
 

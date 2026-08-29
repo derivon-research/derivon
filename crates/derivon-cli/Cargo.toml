@@ -1,6 +1,6 @@
 [package]
 name = "derivon-cli"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license.workspace = true
 repository.workspace = true
@@ -21,4 +21,4 @@ clap = { version = "4.6.0", features = ["derive"] }
 derivon-core = { version = "0.2.0", path = "../derivon-core" }
 rust_decimal = "1.42.0"
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = { version = "1.0.149", features = ["arbitrary_precision"] }
+serde_json = { version = "1.0.149", features = ["arbitrary_precision", "unbounded_depth"] }

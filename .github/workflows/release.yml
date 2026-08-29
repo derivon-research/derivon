@@ -108,7 +108,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --generate-notes \
-            --title "Derivon CLI ${RELEASE_TAG#derivon-cli-v}"
+            --title "Derivon CLI v${RELEASE_TAG#derivon-cli-v}"
 
   crates-io:
     needs: verify

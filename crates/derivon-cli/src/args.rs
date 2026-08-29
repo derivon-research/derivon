@@ -13,28 +13,69 @@ pub const DEFAULT_MAX_MILLIS: u64 = 10_000;
     version,
     long_version = concat!(env!("CARGO_PKG_VERSION"), " (default graph schema: derivon.graph/v1)"),
     about = "Stateless operations on Derivon weighted directed B-hypergraphs",
-    disable_help_subcommand = true
+    disable_help_subcommand = true,
+    disable_version_flag = true
 )]
 pub struct Cli {
-    #[arg(long, global = true)]
+    /// Read the graph from a file instead of stdin
+    #[arg(long, global = true, value_name = "FILE")]
     pub input: Option<PathBuf>,
+    /// Pretty-print successful JSON output
     #[arg(long, global = true)]
     pub pretty: bool,
-    #[arg(long, global = true, default_value_t = DEFAULT_MAX_INPUT_BYTES, value_parser = clap::value_parser!(u64).range(1..))]
+    /// Maximum graph input size in bytes
+    #[arg(long, global = true, default_value_t = DEFAULT_MAX_INPUT_BYTES, value_parser = clap::value_parser!(u64).range(1..), value_name = "N")]
     pub max_input_bytes: u64,
-    #[arg(long, global = true, default_value_t = DEFAULT_MAX_VALUE_BYTES, value_parser = clap::value_parser!(u64).range(1..))]
+    /// Maximum data or value input size in bytes
+    #[arg(long, global = true, default_value_t = DEFAULT_MAX_VALUE_BYTES, value_parser = clap::value_parser!(u64).range(1..), value_name = "N")]
     pub max_value_bytes: u64,
     #[command(subcommand)]
     pub command: Command,
 }
 
+impl Cli {
+    pub fn command() -> clap::Command {
+        use clap::CommandFactory;
+
+        <Self as CommandFactory>::command().arg(
+            clap::Arg::new("version")
+                .short('v')
+                .short_alias('V')
+                .long("version")
+                .action(clap::ArgAction::Version)
+                .help("Print version"),
+        )
+    }
+
+    pub fn try_parse() -> Result<Self, clap::Error> {
+        Self::try_parse_from(std::env::args_os())
+    }
+
+    pub fn try_parse_from<I, T>(args: I) -> Result<Self, clap::Error>
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<std::ffi::OsString> + Clone,
+    {
+        use clap::FromArgMatches;
+
+        let mut matches = Self::command().try_get_matches_from(args)?;
+        Self::from_arg_matches_mut(&mut matches)
+    }
+}
+
 #[derive(Debug, Subcommand)]
 pub enum Command {
+    /// Validate and serialize a graph
     Validate,
+    /// Manage points and point data
     Point(PointArgs),
+    /// Manage hyperedges and hyperedge data
     Hyperedge(HyperedgeArgs),
+    /// Run closure, route, and diagnosis queries
     Query(QueryArgs),
+    /// Extract induced, reachable, and route subgraphs
     Subgraph(SubgraphArgs),
+    /// Apply an atomic batch of typed mutations
     Apply(ApplyArgs),
 }
 
@@ -87,7 +128,7 @@ pub enum HyperedgeCommand {
         tails: Vec<String>,
         #[arg(long)]
         head: String,
-        #[arg(long)]
+        #[arg(long, allow_negative_numbers = true)]
         weight: String,
         #[command(flatten)]
         data: OptionalJson,
@@ -124,6 +165,7 @@ pub enum HyperedgeSetCommand {
     },
     Weight {
         id: String,
+        #[arg(allow_negative_numbers = true)]
         weight: String,
     },
 }
@@ -157,7 +199,7 @@ pub enum DataCommand {
 #[derive(Debug, Args)]
 #[group(id = "optional_json", multiple = false)]
 pub struct OptionalJson {
-    #[arg(long, group = "optional_json")]
+    #[arg(long, group = "optional_json", allow_negative_numbers = true)]
     pub data: Option<String>,
     #[arg(long, group = "optional_json")]
     pub data_file: Option<PathBuf>,
@@ -166,7 +208,7 @@ pub struct OptionalJson {
 #[derive(Debug, Args)]
 #[group(id = "required_json", required = true, multiple = false)]
 pub struct RequiredJson {
-    #[arg(long, group = "required_json")]
+    #[arg(long, group = "required_json", allow_negative_numbers = true)]
     pub value: Option<String>,
     #[arg(long, group = "required_json")]
     pub value_file: Option<PathBuf>,

@@ -19,12 +19,13 @@ Global options are:
 --max-input-bytes <N>
 --max-value-bytes <N>
 -h, --help
--V, --version
+-v, --version
 ```
 
 Graph input defaults to stdin. When `--input` is present, stdin is not inspected. Byte
 limits are positive decimal values; zero is not an unlimited sentinel. Business options
-have stable long names only.
+have stable long names only. The v0.1.0 spelling `-V` remains accepted as a hidden
+compatibility alias; new scripts use `-v` or `--version`.
 
 Point and hyperedge mutations emit a complete graph. Reads emit bare JSON entities or
 values without an envelope. `validate` passes a valid graph through unchanged. Query

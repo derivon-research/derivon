@@ -31,5 +31,5 @@ Linux auto 下载静态 `x86_64-unknown-linux-musl` 或 `aarch64-unknown-linux-m
 脚本不使用 sudo、不修改 shell rc 或 PATH；PATH 缺失时只打印说明。v0.1 不发布独立 macOS/Windows archive。Linux archive 命名为 `derivon-VERSION-TARGET.tar.gz`，包含 binary、根 LICENSE 和 README；release 提供 `SHA256SUMS` 与 build provenance。
 
 ```text
-derivon 0.1.0 (default graph schema: derivon.graph/v1)
+derivon 0.1.1 (default graph schema: derivon.graph/v1)
 ```

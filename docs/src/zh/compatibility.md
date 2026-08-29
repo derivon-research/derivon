@@ -1,6 +1,6 @@
 # 兼容政策
 
-首个 CLI package 版本是 `0.1.0`，Git tag 为 `derivon-cli-v0.1.0`，用 package 前缀避免与 workspace 现有 tag 冲突。
+首个 CLI package 版本是 `0.1.0`，Git tag 为 `derivon-cli-v0.1.0`，用 package 前缀避免与 workspace 现有 tag 冲突。`0.1.1` 将显示的短版本参数改为 `-v`；v0.1.0 的 `-V` 在整个 `0.1.x` 兼容线中继续作为隐藏 alias 接受。
 
 1.0 之前，同一 minor 内的 patch 保持契约兼容；新的 `0.x` minor 可以通过 release notes 引入不兼容变化。1.0 之后，不兼容的命令、成功输出、error code 或 apply operation 变化需要新的 CLI major。兼容版本可以新增命令、可选 flag 和 error code，消费者必须处理未知 code。自动化应固定兼容版本线，例如 `0.1.x`。
 

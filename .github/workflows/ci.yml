@@ -38,6 +38,7 @@ jobs:
       - run: bash -n scripts/build-pages.sh
       - run: bash -n scripts/render-homebrew-formula.sh
       - run: sh -n scripts/install.sh
+      - run: grep -Fq -- '--title "Derivon CLI v${RELEASE_TAG#derivon-cli-v}"' .github/workflows/release.yml
       - run: scripts/build-pages.sh site
       - run: test -f site/cli/dev/index.html && test -f site/cli/dev/zh/index.html && test -f site/cli/install.sh
 

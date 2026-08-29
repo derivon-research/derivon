@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use rust_decimal::Decimal;
 use rust_decimal::prelude::ToPrimitive;
+use serde::Deserialize;
 use serde_json::{Map, Number, Value};
 
 use crate::error::{CliError, Issue};
@@ -108,7 +109,10 @@ pub fn parse_json(bytes: &[u8]) -> Result<Value, CliError> {
         };
         CliError::data(code, issue.message).with_detail("path", issue.path)
     })?;
-    serde_json::from_slice(bytes).map_err(|error| CliError::data("invalid_json", error.to_string()))
+    let mut deserializer = serde_json::Deserializer::from_slice(bytes);
+    deserializer.disable_recursion_limit();
+    Value::deserialize(&mut deserializer)
+        .map_err(|error| CliError::data("invalid_json", error.to_string()))
 }
 
 pub fn parse_graph(bytes: &[u8]) -> Result<GraphDoc, CliError> {
@@ -182,18 +186,18 @@ pub fn graph_from_value(value: &Value) -> Result<GraphDoc, Vec<Issue>> {
             let Some(id) = string_field(object, "id", &path, &mut issues) else {
                 continue;
             };
-            if !valid_id(&id) {
-                issues.push(Issue::new(
-                    "invalid_id",
-                    format!("{path}/id"),
-                    "invalid point id",
-                ));
-            }
             if let Some(previous) = all_ids.insert(id.clone(), format!("{path}/id")) {
                 issues.push(Issue::new(
                     "duplicate_id",
                     format!("{path}/id"),
                     format!("id `{id}` already appears at {previous}"),
+                ));
+            }
+            if !valid_id(&id) {
+                issues.push(Issue::new(
+                    "invalid_id",
+                    format!("{path}/id"),
+                    "invalid point id",
                 ));
             }
             point_ids.entry(id.clone()).or_insert(index);
@@ -250,18 +254,18 @@ pub fn graph_from_value(value: &Value) -> Result<GraphDoc, Vec<Issue>> {
             else {
                 continue;
             };
-            if !valid_id(&id) {
-                issues.push(Issue::new(
-                    "invalid_id",
-                    format!("{path}/id"),
-                    "invalid hyperedge id",
-                ));
-            }
             if let Some(previous) = all_ids.insert(id.clone(), format!("{path}/id")) {
                 issues.push(Issue::new(
                     "duplicate_id",
                     format!("{path}/id"),
                     format!("id `{id}` already appears at {previous}"),
+                ));
+            }
+            if !valid_id(&id) {
+                issues.push(Issue::new(
+                    "invalid_id",
+                    format!("{path}/id"),
+                    "invalid hyperedge id",
                 ));
             }
             let mut seen = HashSet::new();
@@ -651,7 +655,59 @@ mod tests {
             parse_weight(&serde_json::from_str("1e2").unwrap()).unwrap(),
             1000
         );
+        assert_eq!(
+            parse_weight(&serde_json::from_str("-0.0").unwrap()).unwrap(),
+            0
+        );
+        assert_eq!(
+            parse_weight(&serde_json::from_str("900719925474099.1").unwrap()).unwrap(),
+            MAX_WEIGHT_UNITS
+        );
         assert!(parse_weight(&serde_json::json!(1.25)).is_err());
+        assert!(parse_weight(&serde_json::json!(-0.1)).is_err());
         assert!(parse_weight(&serde_json::from_str("900719925474099.2").unwrap()).is_err());
+    }
+
+    #[test]
+    fn ids_enforce_ascii_and_byte_boundaries() {
+        assert!(valid_id("A"));
+        assert!(valid_id(&format!("A{}", "z".repeat(127))));
+        assert!(!valid_id(""));
+        assert!(!valid_id(&format!("A{}", "z".repeat(128))));
+        assert!(!valid_id("-A"));
+        assert!(!valid_id("A/B"));
+        assert!(!valid_id("é"));
+    }
+
+    #[test]
+    fn json_depth_limit_accepts_128_and_rejects_129_containers() {
+        let at_limit = format!("{}0{}", "[".repeat(128), "]".repeat(128));
+        assert!(parse_json(at_limit.as_bytes()).is_ok());
+
+        let over_limit = format!("{}0{}", "[".repeat(129), "]".repeat(129));
+        let error = parse_json(over_limit.as_bytes()).unwrap_err();
+        assert_eq!(error.code, "nesting_limit_exceeded");
+    }
+
+    #[test]
+    fn nested_duplicate_keys_report_an_escaped_pointer_path() {
+        let error = parse_json(br#"{"data":{"a/b":1,"a/b":2}}"#).unwrap_err();
+        assert_eq!(error.code, "duplicate_key");
+        assert_eq!(error.details["path"], "/data/a~1b");
+    }
+
+    #[test]
+    fn issue_codes_at_the_same_path_are_sorted() {
+        let value = serde_json::json!({
+            "points": [{"id":"bad/id"},{"id":"bad/id"}],
+            "hyperedges": []
+        });
+        let issues = graph_from_value(&value).unwrap_err();
+        let codes: Vec<_> = issues
+            .iter()
+            .filter(|issue| issue.path == "/points/1/id")
+            .map(|issue| issue.code.as_str())
+            .collect();
+        assert_eq!(codes, ["duplicate_id", "invalid_id"]);
     }
 }

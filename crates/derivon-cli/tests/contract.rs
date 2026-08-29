@@ -3,7 +3,6 @@ use std::io::{ErrorKind, Write};
 use std::process::{Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use clap::Parser;
 use derivon_cli::args::Cli;
 use serde_json::{Value, json};
 

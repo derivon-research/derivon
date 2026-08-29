@@ -57,5 +57,5 @@ README. Releases include `SHA256SUMS` and build provenance.
 `derivon --version` reports the CLI version and default graph schema:
 
 ```text
-derivon 0.1.0 (default graph schema: derivon.graph/v1)
+derivon 0.1.1 (default graph schema: derivon.graph/v1)
 ```
