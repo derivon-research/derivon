@@ -60,7 +60,8 @@ shared term, defer to the artifact that owns it:
 | --- | --- |
 | Mathematical model: point, hyperedge, tail, head, closure, derivation, set cost, tree cost, depth cost, bracket | `derivon-research/paper` |
 | Graph protocol `derivon.graph/v1` | `derivon-research/derivon` |
-| Authoring protocol `derivon.authoring/v0.3.0`: concept, derivation, object document, replacement view | `derivon-research/derivon-mindmap` |
+| Workspace protocol `derivon.workspace/v1`: concept, derivation, object document, tag | `derivon-research/derivon-mindmap` |
+| Orientation protocol `derivon.orientation/v1`: orientation configuration, default route seed | `derivon-research/derivon-mindmap` |
 | Authoring methodology: problem pressure, problem-led derivation | `derivon-research/skills` (`CONTEXT.md`) |
 
 Do not restate a term owned elsewhere. Link to its source instead. If two sources appear to
