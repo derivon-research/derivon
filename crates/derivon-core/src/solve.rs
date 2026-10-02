@@ -533,6 +533,17 @@ impl<P, E, L: CostMeasure> Search<'_, P, E, L> {
         for point in derived.iter() {
             remaining[point.index()] = false;
         }
+        // A selected edge already promises its head: the edge's unmet premises became
+        // goals when it was chosen. Re-queuing the head would offer only edges other than
+        // the promised one, and with none left the empty branch loop would report the
+        // subtree as explored, losing the optimum (derivon#6). If promises form a cycle,
+        // the targets stay underived below and the branch is a genuine dead end.
+        for (index, is_selected) in selected.iter().enumerate() {
+            if *is_selected {
+                let edge = self.graph.edge_unchecked(self.graph.edge_id_at(index));
+                remaining[edge.head().index()] = false;
+            }
+        }
 
         if !remaining.iter().any(|needed| *needed) {
             if self.targets.iter().all(|target| derived.contains(target)) && cost < self.best_cost {
@@ -920,6 +931,91 @@ mod tests {
                     let reached = closure_restricted(&graph, &start, &solution.derivation);
                     assert!(targets.iter().all(|target| reached.contains(target)));
                 }
+            }
+        }
+    }
+
+    /// Regression for derivon#6. Selecting `de` for goal `e` leaves `e` underived until
+    /// `d` is. Choosing `ea` for goal `a` then re-queued `e` as a goal, whose only
+    /// incoming edge was already selected; the empty branch loop reported the subtree as
+    /// explored and the optimum 3 was lost behind a "proven" 4.
+    #[test]
+    fn goal_promised_by_selected_edge_is_not_requeued() {
+        let mut graph = Graph::new();
+        let [s, a, d, e, h, i, t] =
+            ["s", "a", "d", "e", "h", "i", "t"].map(|name| graph.add_point(name, ()).unwrap());
+        let edges = [
+            ("sa", vec![s], a, 2),
+            ("sd", vec![s], d, 0),
+            ("de", vec![d], e, 2),
+            ("ea", vec![e], a, 1),
+            ("aeh", vec![a, e], h, 0),
+            ("ehi", vec![e, h], i, 0),
+            ("it", vec![i], t, 0),
+        ];
+        for (name, tail, head, weight) in edges {
+            graph
+                .add_hyperedge(name, tail, head, Cost::from_units(weight), ())
+                .unwrap();
+        }
+        let start = PointSet::from_ids(&graph, [s]).unwrap();
+
+        let solution = solve(&graph, &start, t, &Budget::default()).unwrap();
+
+        assert_eq!(solution.cost, Cost::from_units(3));
+        assert!(solution.proven_optimal);
+    }
+
+    /// The generator above rarely reaches branch and bound with a point that has several
+    /// derivations. Here most edges point forward along a fixed order, so targets are
+    /// usually reachable with shared prerequisites, and some point backward, so a point
+    /// can also be re-derived from one that is already needed. That is the derivon#6
+    /// shape.
+    #[test]
+    fn branch_and_bound_matches_exhaustive_search_with_back_edges() {
+        let mut random = Lcg(6);
+        for trial in 0..300 {
+            let mut graph = Graph::new();
+            let points: Vec<_> = (0..8)
+                .map(|index| graph.add_point(format!("p{index}"), ()).unwrap())
+                .collect();
+
+            for edge_index in 0..12 {
+                let head_index = 1 + (random.next() as usize) % (points.len() - 1);
+                let mut pool: Vec<_> = if random.next() % 10 < 3 {
+                    (1..points.len())
+                        .filter(|&index| index != head_index)
+                        .collect()
+                } else {
+                    (0..head_index).collect()
+                };
+                let mut tail = Vec::new();
+                for _ in 0..1 + random.next() % 3 {
+                    if pool.is_empty() {
+                        break;
+                    }
+                    let picked = pool.swap_remove((random.next() as usize) % pool.len());
+                    tail.push(points[picked]);
+                }
+                let weight = Cost::from_units(random.next() % 8);
+                graph
+                    .add_hyperedge(
+                        format!("e{edge_index}"),
+                        tail,
+                        points[head_index],
+                        weight,
+                        (),
+                    )
+                    .unwrap();
+            }
+
+            let start = PointSet::from_ids(&graph, [points[0]]).unwrap();
+            for &target in &points[1..] {
+                let expected = exhaustive_cost(&graph, &start, target);
+                let solution = solve(&graph, &start, target, &Budget::default()).unwrap();
+                assert!(solution.proven_optimal, "trial {trial}, target {target:?}");
+                assert_eq!(solution.cost, expected, "trial {trial}, target {target:?}");
+                assert_eq!(solution.lower, expected, "trial {trial}, target {target:?}");
             }
         }
     }
