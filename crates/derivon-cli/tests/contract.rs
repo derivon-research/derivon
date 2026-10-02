@@ -123,6 +123,24 @@ fn empty_tail_closure_and_route_use_core_semantics() {
     assert_eq!(route["executableOrder"], json!(["entry", "ab"]));
 }
 
+/// The reported graph from derivon#6. Swapping `e1` (s -> a, 6) for `e10` (e -> a, 2)
+/// reuses `e`, which the route derives anyway, so 45 is reachable; 0.1.1 answered a
+/// "proven optimal" 49.
+#[test]
+fn route_proven_optimal_reuses_a_point_already_derived() {
+    let graph = r#"{"points":[{"id":"a"},{"id":"b"},{"id":"c"},{"id":"d"},{"id":"e"},{"id":"f"},{"id":"g"},{"id":"h"},{"id":"i"},{"id":"j"},{"id":"k"},{"id":"s"},{"id":"t"}],"hyperedges":[{"id":"e1","tails":["s"],"head":"a","weight":6},{"id":"e2","tails":["a"],"head":"b","weight":2},{"id":"e3","tails":["b"],"head":"c","weight":4},{"id":"e4","tails":["s"],"head":"d","weight":2},{"id":"e5","tails":["d"],"head":"e","weight":5},{"id":"e6","tails":["e"],"head":"f","weight":2},{"id":"e7","tails":["c"],"head":"g","weight":6},{"id":"e8","tails":["f","g"],"head":"h","weight":2},{"id":"e9","tails":["f","h"],"head":"i","weight":7},{"id":"e10","tails":["e"],"head":"a","weight":2},{"id":"e11","tails":["i"],"head":"j","weight":3},{"id":"e12","tails":["j"],"head":"k","weight":3},{"id":"e13","tails":["k"],"head":"t","weight":7}]}"#;
+    let route = execute(&["query", "route", "--start", "s", "--target", "t"], graph).unwrap();
+    assert_eq!(route["cost"], 45);
+    assert_eq!(route["lower"], 45);
+    assert_eq!(route["provenOptimal"], true);
+    assert!(
+        route["hyperedgeIds"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("e10"))
+    );
+}
+
 #[test]
 fn unreachable_route_is_a_success_union_with_diagnosis() {
     let graph = r#"{"points":[{"id":"A"},{"id":"B"}],"hyperedges":[]}"#;

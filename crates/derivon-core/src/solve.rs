@@ -974,6 +974,7 @@ mod tests {
     #[test]
     fn branch_and_bound_matches_exhaustive_search_with_back_edges() {
         let mut random = Lcg(6);
+        let mut searched = 0;
         for trial in 0..300 {
             let mut graph = Graph::new();
             let points: Vec<_> = (0..8)
@@ -1016,8 +1017,19 @@ mod tests {
                 assert!(solution.proven_optimal, "trial {trial}, target {target:?}");
                 assert_eq!(solution.cost, expected, "trial {trial}, target {target:?}");
                 assert_eq!(solution.lower, expected, "trial {trial}, target {target:?}");
+                if solution.nodes > 0 {
+                    searched += 1;
+                }
             }
         }
+        // Agreement with exhaustive search proves nothing about branch and bound if
+        // the bounds already pin every answer. derivon#6 hid behind exactly that: the
+        // older generator reached the search in 4 of 600 queries. This seed reaches it
+        // in 109 of 2100; the floor fails loudly if a generator change loses that.
+        assert!(
+            searched >= 80,
+            "only {searched} queries reached branch and bound"
+        );
     }
 
     fn exhaustive_cost(graph: &Graph, start: &PointSet, target: PointId) -> Cost {
