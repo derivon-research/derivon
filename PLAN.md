@@ -23,6 +23,10 @@ compatibility alias, accepts negative numeric CLI values for exact domain valida
 and makes the documented 128-level JSON depth boundary exact. Its expanded process,
 command, apply, and protocol tests cover the complete public command families.
 
+`derivon-cli-v0.1.2` ships with `derivon-core 0.2.1`. The core patch fixes route search
+reporting a non-optimal cost as proven optimal when the cheaper route re-derives a
+point from one the route already needs (derivon#6); the CLI contract is unchanged.
+
 Homebrew distribution is published. The repository-scoped `HOMEBREW_TAP_TOKEN` drives
 a serialized macOS workflow that generates the source Formula, runs `brew style`, strict
 audit, source installation, and `brew test`, and only then pushes it to
